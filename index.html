@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Molukse Memory</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap">
+<style>
+:root{
+  --bg:#dff1e6; --ink:#17332b; --muted:#4d6b5f; --back:#2f7d5b; --back2:#3d9470;
+  --front:#fffdf4; --sun:#f6c445; --ok:#9be3b4; --line:#17332b22;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#10241e; --ink:#e6f4ee; --muted:#9bbdae; --back:#2f7d5b; --back2:#3d9470;
+    --front:#1f3d33; --sun:#f6c445; --ok:#2e6b4b; --line:#e6f4ee22; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10241e; --ink:#e6f4ee; --muted:#9bbdae; --back:#2f7d5b; --back2:#3d9470;
+  --front:#1f3d33; --sun:#f6c445; --ok:#2e6b4b; --line:#e6f4ee22; color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh; background:var(--bg); color:var(--ink);
+  font-family:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  display:flex; flex-direction:column; align-items:center; padding:20px 14px 32px;
+}
+h1{font-size:clamp(2rem,6vw,3rem); margin:4px 0 2px; font-weight:700; letter-spacing:-.01em}
+.sub{margin:0 0 16px; color:var(--muted); text-align:center}
+.bar{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center; margin-bottom:16px}
+.levels{display:flex; gap:6px; background:var(--line); padding:5px; border-radius:999px}
+.levels button{
+  font:inherit; font-weight:600; border:0; background:transparent; color:var(--ink);
+  padding:8px 16px; border-radius:999px; cursor:pointer;
+}
+.levels button[aria-pressed="true"]{background:var(--sun); color:#17332b}
+.stat{font-weight:600; padding:8px 14px; border-radius:999px; background:var(--line); min-width:92px; text-align:center}
+.restart{font:inherit; font-weight:700; border:0; background:var(--back); color:#fff; padding:9px 18px; border-radius:999px; cursor:pointer}
+button:focus-visible{outline:3px solid var(--sun); outline-offset:3px}
+.board{
+  display:grid; gap:clamp(8px,2vw,14px); width:100%; max-width:560px;
+  grid-template-columns:repeat(var(--cols),1fr);
+}
+.card{
+  aspect-ratio:1; border:0; padding:0; background:none; cursor:pointer;
+  perspective:700px; font:inherit;
+}
+.inner{
+  position:relative; width:100%; height:100%; transform-style:preserve-3d;
+  transition:transform .4s;
+}
+.card.open .inner,.card.done .inner{transform:rotateY(180deg)}
+.face{
+  position:absolute; inset:0; border-radius:16px; backface-visibility:hidden;
+  display:flex; align-items:center; justify-content:center;
+}
+.back{
+  background:var(--back);
+  background-image:radial-gradient(circle at 50% 58%, var(--back2) 0 22%, transparent 23%),
+    radial-gradient(circle at 28% 34%, var(--back2) 0 8%, transparent 9%),
+    radial-gradient(circle at 50% 26%, var(--back2) 0 8%, transparent 9%),
+    radial-gradient(circle at 72% 34%, var(--back2) 0 8%, transparent 9%);
+  box-shadow:0 3px 0 #1f5a40;
+}
+.front{
+  background:var(--front); transform:rotateY(180deg);
+  font-size:clamp(.85rem,3.8vw,1.2rem); font-weight:600; text-align:center; padding:4px; line-height:1.1; overflow-wrap:anywhere; flex-direction:column; gap:2px; box-shadow:0 3px 0 var(--line); border:2px solid var(--line);
+}
+.card[data-lang="mol"] .front{border-color:var(--sun)}
+.pic{font-size:clamp(1.6rem,8vw,2.6rem); line-height:1}
+.card.done .front{background:var(--ok); border-color:transparent}
+.card.done .inner{animation:pop .4s .35s}
+@keyframes pop{50%{transform:rotateY(180deg) scale(1.08)}}
+.win{
+  position:fixed; inset:0; background:#0009; display:none; align-items:center; justify-content:center; padding:20px; z-index:20;
+}
+.win.show{display:flex}
+.win div{background:var(--front); color:var(--ink); padding:28px 26px; border-radius:24px; text-align:center; max-width:340px}
+.win h2{margin:0 0 6px; font-size:1.9rem}
+.win p{margin:0 0 18px}
+@media (prefers-reduced-motion:reduce){.inner{transition:none}.card.done .inner{animation:none}}
+</style>
+</head>
+<body>
+<h1>Molukse Memory</h1>
+<p class="sub">Zoek het Molukse woord (gouden rand) en de Nederlandse vertaling. Elk kaartje heeft een plaatje, bijvoorbeeld nasi en rijst met een bordje rijst.</p>
+<div class="bar">
+  <div class="levels" role="group" aria-label="Niveau">
+    <button data-n="6" aria-pressed="true">Makkelijk</button>
+    <button data-n="8" aria-pressed="false">Gemiddeld</button>
+    <button data-n="12" aria-pressed="false">Moeilijk</button>
+  </div>
+  <div class="stat" id="moves">Zetten: 0</div>
+  <div class="stat" id="time">Tijd: 0s</div>
+  <button class="restart" id="restart">Opnieuw</button>
+</div>
+<div class="board" id="board"></div>
+<div class="win" id="win" role="dialog" aria-modal="true">
+  <div>
+    <h2>🎉 Bagoes! Gewonnen!</h2>
+    <p id="result"></p>
+    <button class="restart" id="again">Nog een keer</button>
+  </div>
+</div>
+<script>
+const WOORDEN=[["nasi","rijst","🍚"],["bagoes","goed","👍"],["anak","kind","👶"],["makan","eten","🍽️"],["minum","drinken","🥤"],["roemah","huis","🏠"],["ikan","vis","🐟"],["ayam","kip","🐔"],["pisang","banaan","🍌"],["enak","lekker","😋"],["besar","groot","🐘"],["kecil","klein","🐜"],["pedis","pittig","🌶️"],["sajang","lief","💕"],["mata","oog","👁️"],["ajer","water","💧"],["api","vuur","🔥"],["bulan","maan","🌙"],["matahari","zon","☀️"],["hujan","regen","🌧️"],["pohon","boom","🌳"],["bunga","bloem","🌸"],["kopi","koffie","☕"],["telur","ei","🥚"],["roti","brood","🍞"],["susu","melk","🥛"],["garam","zout","🧂"],["sapi","koe","🐄"],["kuda","paard","🐴"],["kambing","geit","🐐"],["kucing","kat","🐱"],["anjing","hond","🐶"],["boeroeng","vogel","🐦"],["perahu","boot","⛵"],["mobil","auto","🚗"],["sepeda","fiets","🚲"],["buku","boek","📖"],["tidur","slapen","😴"],["tangan","hand","✋"],["gigi","tand","🦷"],["kelapa","kokosnoot","🥥"],["nanas","ananas","🍍"],["mangga","mango","🥭"],["dingin","koud","🥶"],["bintang","ster","⭐"],["awan","wolk","☁️"],["angin","wind","💨"],["gunung","berg","⛰️"],["laut","zee","🌊"],["pantai","strand","🏖️"],["batu","steen","🪨"],["kayu","hout","🪵"],["daun","blad","🍃"],["jalan","weg","🛣️"],["kota","stad","🏙️"],["pasar","markt","🛒"],["sekolah","school","🏫"],["gereja","kerk","⛪"],["pintu","deur","🚪"],["jendela","raam","🪟"],["kursi","stoel","🪑"],["ranjang","bed","🛏️"],["lampu","lamp","💡"],["kunci","sleutel","🔑"],["uang","geld","💰"],["baju","kleren","👕"],["sepatu","schoen","👟"],["payung","paraplu","☂️"],["pisau","mes","🔪"],["sendok","lepel","🥄"],["mangkok","kom","🥣"],["gelas","glas","🥃"],["teh","thee","🍵"],["daging","vlees","🥩"],["sayur","groente","🥬"],["buah","fruit","🍇"],["jagung","maïs","🌽"],["kentang","aardappel","🥔"],["tomat","tomaat","🍅"],["bawang","ui","🧅"],["kue","koek","🍰"],["es","ijs","🍦"],["ular","slang","🐍"],["tikus","muis","🐭"],["babi","varken","🐷"],["bebek","eend","🦆"],["kupu-kupu","vlinder","🦋"],["kodok","kikker","🐸"],["kura-kura","schildpad","🐢"],["harimau","tijger","🐅"],["monyet","aap","🐒"],["buaya","krokodil","🐊"],["udang","garnaal","🦐"],["kepiting","krab","🦀"],["cumi","inktvis","🦑"],["lebah","bij","🐝"],["nyamuk","mug","🦟"],["hiu","haai","🦈"],["paus","walvis","🐋"],["hidung","neus","👃"],["telinga","oor","👂"],["mulut","mond","👄"],["lidah","tong","👅"],["jantung","hart","❤️"],["tulang","bot","🦴"],["mama","moeder","👩"],["bapa","vader","👨"],["adik","broertje of zusje","🧒"],["teman","vriend","🤝"],["guru","leraar","🧑‍🏫"],["raja","koning","👑"],["senang","blij","😊"],["sedih","verdrietig","😢"],["marah","boos","😠"],["takut","bang","😨"],["capek","moe","🥱"],["lapar","honger","🤤"],["haus","dorst","🥵"],["sakit","ziek","🤒"],["sehat","gezond","💪"],["baru","nieuw","🆕"],["tua","oud","👴"],["muda","jong","🧑"],["tinggi","hoog","🗼"],["panjang","lang","📏"],["pendek","kort","🤏"],["berat","zwaar","🏋️"],["ringan","licht","🪶"],["cepat","snel","⚡"],["lambat","langzaam","🐌"],["satu","een","1️⃣"],["dua","twee","2️⃣"],["tiga","drie","3️⃣"],["empat","vier","4️⃣"],["lima","vijf","5️⃣"],["enam","zes","6️⃣"],["tujuh","zeven","7️⃣"],["delapan","acht","8️⃣"],["sembilan","negen","9️⃣"],["sepuluh","tien","🔟"],["merah","rood","🔴"],["biru","blauw","🔵"],["hijau","groen","🟢"],["kuning","geel","🟡"],["hitam","zwart","⚫"],["putih","wit","⚪"],["coklat","bruin","🟤"],["ungu","paars","🟣"],["pagi","ochtend","🌅"],["siang","middag","🌞"],["malam","nacht","🌃"],["hari","dag","📅"],["nyanyi","zingen","🎤"],["menari","dansen","💃"],["main","spelen","⚽"],["baca","lezen","📚"],["tulis","schrijven","✍️"],["lihat","kijken","👀"],["dengar","horen","🎧"],["lari","rennen","🏃"],["lompat","springen","🤸"],["berenang","zwemmen","🏊"],["masak","koken","🍳"],["cuci","wassen","🚿"],["buka","openen","🔓"],["tutup","sluiten","🔒"],["duduk","zitten","🧘"],["berdiri","staan","🧍"],["tertawa","lachen","😂"],["menangis","huilen","😭"],["cinta","liefde","💘"],["damai","vrede","🕊️"],["doa","gebed","🙏"],["pesta","feest","🎉"],["musik","muziek","🎵"],["gitar","gitaar","🎸"],["tifa","trom","🥁"],["pela","broederband","🫂"],["cengkeh","kruidnagel","🌿"],["pala","nootmuskaat","🌰"],["pulau","eiland","🏝️"],["kampong","dorp","🏘️"],["sungai","rivier","🏞️"],["hutan","bos","🌲"],["kebun","tuin","🌻"],["sawah","rijstveld","🌾"],["petir","bliksem","🌩️"],["salju","sneeuw","❄️"],["pelangi","regenboog","🌈"],["jam","klok","🕐"],["telepon","telefoon","📞"],["kapal","schip","🚢"],["pesawat","vliegtuig","✈️"],["hadiah","cadeau","🎁"],["bendera","vlag","🚩"],["sapu","bezem","🧹"],["palu","hamer","🔨"],["gunting","schaar","✂️"],["jarum","naald","🪡"],["cermin","spiegel","🪞"],["sabun","zeep","🧼"],["obat","medicijn","💊"],["darah","bloed","🩸"],["hantu","spook","👻"],["bayi","baby","🍼"]];
+let gebruikt=[];
+function kies(n){
+  let vrij=WOORDEN.filter(w=>!gebruikt.includes(w[0]));
+  if(vrij.length<n){gebruikt=[];vrij=WOORDEN.slice()}
+  const s=shuffle(vrij).slice(0,n);
+  s.forEach(w=>gebruikt.push(w[0]));
+  return s;
+}
+const COLS={6:4,8:4,12:4};
+const board=document.getElementById("board"),movesEl=document.getElementById("moves"),timeEl=document.getElementById("time"),win=document.getElementById("win"),result=document.getElementById("result");
+let pairs=6,first=null,lock=false,moves=0,found=0,start=0,timer=null;
+
+function best(k){try{return localStorage.getItem("memory-best-"+k)}catch(e){return null}}
+function saveBest(k,v){try{localStorage.setItem("memory-best-"+k,v)}catch(e){}}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function newGame(){
+  clearInterval(timer); timer=null; first=null; lock=false; moves=0; found=0; start=0;
+  movesEl.textContent="Zetten: 0"; timeEl.textContent="Tijd: 0s"; win.classList.remove("show");
+  board.style.setProperty("--cols",COLS[pairs]);
+  board.style.maxWidth="560px";
+  const set=kies(pairs);
+  const deck=[];
+  set.forEach(([mol,nl,pic])=>{deck.push([mol,mol,"mol",pic]);deck.push([nl,mol,"nl",pic])});
+  shuffle(deck);
+  board.innerHTML="";
+  deck.forEach(([tekst,id,taal,pic])=>{
+    const b=document.createElement("button");
+    b.className="card"; b.dataset.name=id; b.dataset.lang=taal; b.dataset.tekst=tekst; b.setAttribute("aria-label","Kaartje, dicht");
+    b.innerHTML='<div class="inner"><div class="face back"></div><div class="face front"><span class="pic">'+pic+'</span><span>'+tekst+'</span></div></div>';
+    b.addEventListener("click",()=>flip(b));
+    board.appendChild(b);
+  });
+}
+
+function flip(c){
+  if(lock||c.classList.contains("open")||c.classList.contains("done"))return;
+  if(!timer){start=Date.now();timer=setInterval(()=>{timeEl.textContent="Tijd: "+Math.floor((Date.now()-start)/1000)+"s"},500)}
+  c.classList.add("open"); c.setAttribute("aria-label",c.dataset.tekst);
+  if(!first){first=c;return}
+  moves++; movesEl.textContent="Zetten: "+moves;
+  if(first.dataset.name===c.dataset.name){
+    [first,c].forEach(x=>{x.classList.remove("open");x.classList.add("done")});
+    first=null; found++;
+    if(found===pairs)finish();
+  }else{
+    lock=true; const a=first; first=null;
+    setTimeout(()=>{[a,c].forEach(x=>{x.classList.remove("open");x.setAttribute("aria-label","Kaartje, dicht")});lock=false},900);
+  }
+}
+
+function finish(){
+  clearInterval(timer); timer=null;
+  const secs=Math.floor((Date.now()-start)/1000);
+  const prev=best(pairs); let msg="Je deed het in "+moves+" zetten en "+secs+" seconden.";
+  if(prev===null||moves<Number(prev)){saveBest(pairs,moves); msg+=" Nieuw record!"}
+  else msg+=" Je record is "+prev+" zetten.";
+  result.textContent=msg;
+  setTimeout(()=>win.classList.add("show"),700);
+}
+
+document.querySelectorAll(".levels button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".levels button").forEach(x=>x.setAttribute("aria-pressed","false"));
+  b.setAttribute("aria-pressed","true"); pairs=Number(b.dataset.n); newGame();
+}));
+document.getElementById("restart").addEventListener("click",newGame);
+document.getElementById("again").addEventListener("click",newGame);
+newGame();
+</script>
+</body>
+</html>
